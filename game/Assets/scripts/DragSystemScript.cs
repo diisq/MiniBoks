@@ -6,12 +6,18 @@ public class DragThrow2D : MonoBehaviour
     private Rigidbody2D rb;
     private bool isDragging = false;
     private bool isFrozen = false;
-
     private Vector2 lastMousePos;
     private Vector2 velocity;
 
     [Header("Throw Settings")]
     public float throwForce = 10f;
+    public float dragForce = 10f;
+
+    // Store previous positions for better velocity calculation
+    private Vector2[] mousePositions = new Vector2[5];
+    private int positionIndex = 0;
+    private float velocityUpdateTimer = 0f;
+    private const float velocityUpdateInterval = 0.02f; // 50 FPS for velocity calculation
 
     void Start()
     {
@@ -21,43 +27,33 @@ public class DragThrow2D : MonoBehaviour
     void OnMouseDown()
     {
         isDragging = true;
-        rb.isKinematic = true; // stop physics while dragging
-        lastMousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        Vector2 mouseWorldPos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+        lastMousePos = mouseWorldPos;
+
+        // Initialize position array
+        for (int i = 0; i < mousePositions.Length; i++)
+        {
+            mousePositions[i] = mouseWorldPos;
+        }
+        positionIndex = 0;
+        velocity = Vector2.zero;
     }
 
     void OnMouseDrag()
     {
-        if (isFrozen) return;
-
-        Vector2 currentMousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
-        transform.position = currentMousePos;
-
-        // While time is stopped, do NOT compute throw velocity (keeps object frozen)
-        if (TimeStop.IsStopped)
-        {
-            velocity = Vector2.zero;
-        }
-        else
-        {
-            float dt = Time.deltaTime;
-            if (dt > 0f)
-                velocity = (currentMousePos - lastMousePos) / dt;
-            else
-                velocity = Vector2.zero; // safety if dt == 0
-        }
-
-        lastMousePos = currentMousePos;
+        // Empty - handling in Update/FixedUpdate
     }
 
     void OnMouseUp()
     {
         isDragging = false;
-        rb.isKinematic = false;
 
         // If time is stopped or the object is frozen, don't throw
         if (!isFrozen && !TimeStop.IsStopped)
         {
-            rb.linearVelocity = velocity * throwForce * 0.01f;
+            // Use the calculated velocity for throwing
+            rb.linearVelocity = velocity * throwForce;
+            Debug.Log("ATTEMPTED THROW... velocity: " + velocity.ToString() + " final velocity: " + (velocity * throwForce).ToString());
         }
         else
         {
@@ -67,6 +63,14 @@ public class DragThrow2D : MonoBehaviour
 
     void Update()
     {
+        rb.gravityScale = (isFrozen) ? 0f : 1f;
+
+        if (isFrozen)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.angularVelocity = 0;
+        }
+
         if (!isDragging) return;
 
         // Rotate object while dragging (works even when time is stopped)
@@ -77,7 +81,53 @@ public class DragThrow2D : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.F))
         {
             isFrozen = !isFrozen;
-            rb.isKinematic = isFrozen || isDragging; // keep kinematic if frozen or dragging
+        }
+
+        if (isFrozen) return;
+
+        Vector2 currentMousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+
+        // Update velocity calculation timer
+        velocityUpdateTimer += Time.deltaTime;
+
+        // Calculate velocity for throwing (not while time is stopped)
+        if (!TimeStop.IsStopped && velocityUpdateTimer >= velocityUpdateInterval)
+        {
+            // Store current position
+            mousePositions[positionIndex] = currentMousePos;
+
+            // Calculate velocity using positions from a few frames ago for stability
+            int oldIndex = (positionIndex + 1) % mousePositions.Length;
+            Vector2 oldPos = mousePositions[oldIndex];
+            float deltaTime = velocityUpdateInterval * mousePositions.Length;
+
+            if (deltaTime > 0f)
+            {
+                velocity = (currentMousePos - oldPos) / deltaTime;
+            }
+
+            positionIndex = (positionIndex + 1) % mousePositions.Length;
+            velocityUpdateTimer = 0f;
+
+            Debug.Log("Velocity updated: " + velocity.ToString());
+        }
+        else if (TimeStop.IsStopped)
+        {
+            velocity = Vector2.zero;
+        }
+
+        
+    }
+
+    private void FixedUpdate()
+    {
+        if (isDragging && !isFrozen && !TimeStop.IsStopped)
+        {
+            Vector2 currentMousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
+            Vector2 targetDir = currentMousePos - (Vector2)transform.position;
+
+            // Apply drag force to follow mouse
+            rb.linearVelocity = targetDir * dragForce;
         }
     }
 }
