@@ -65,6 +65,9 @@ public class DragThrow2D : MonoBehaviour
     {
         rb.gravityScale = (isFrozen) ? 0f : 1f;
 
+        
+        rb.constraints = (isFrozen) ? RigidbodyConstraints2D.FreezeAll : RigidbodyConstraints2D.None;
+
         if (isFrozen)
         {
             rb.linearVelocity = Vector2.zero;
@@ -74,8 +77,8 @@ public class DragThrow2D : MonoBehaviour
         if (!isDragging) return;
 
         // Rotate object while dragging (works even when time is stopped)
-        if (Input.GetKey(KeyCode.Q)) transform.Rotate(0, 0, 2f);
-        if (Input.GetKey(KeyCode.E)) transform.Rotate(0, 0, -2f);
+        if (Input.GetKey(KeyCode.Q)) transform.Rotate(0, 0, 2f/5);
+        if (Input.GetKey(KeyCode.E)) transform.Rotate(0, 0, -2f/10);
 
         // Freeze/unfreeze while holding
         if (Input.GetKeyDown(KeyCode.F))
@@ -125,6 +128,8 @@ public class DragThrow2D : MonoBehaviour
         {
             Vector2 currentMousePos = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             Vector2 targetDir = currentMousePos - (Vector2)transform.position;
+
+            rb.angularVelocity = 0f;
 
             // Apply drag force to follow mouse
             rb.linearVelocity = targetDir * dragForce;

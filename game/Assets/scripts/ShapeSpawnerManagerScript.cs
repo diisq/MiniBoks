@@ -8,6 +8,7 @@ public class ShapeSpawner : MonoBehaviour
     public GameObject circlePrefab;
     public GameObject trianglePrefab;
     public GameObject conveyorPrefab; // conveyor belt prefab
+    public GameObject ragdollPrefab; // conveyor belt prefab
 
     public string spawnedLayerName = "SpawnedLayer"; // optional: use layer instead of tag
     private int spawnedLayer;
@@ -74,6 +75,10 @@ public class ShapeSpawner : MonoBehaviour
     public void SpawnConveyor()
     {
         Spawn(conveyorPrefab);
+    }
+    public void SpawnRagdoll()
+    {
+        Spawn(ragdollPrefab);
     }
 
     private void Spawn(GameObject prefab)
